@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="icon" href="data:,">
+    <title>书页视频动效 · 布局编辑器</title>
+    <link rel="stylesheet" href="fx.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body {
+            width:100%; height:100%; overflow:hidden;
+            background:#12100c; color:#f2ead9;
+            font-family:"Noto Serif SC","Songti SC","STSong",serif;
+            touch-action:none; user-select:none;
+        }
+
+        #fx-root.fx-edit-root { pointer-events:none; }
+        .fx-edit-root #fx-frame { overflow:visible; }
+        .fx-edit-root .edit-el { pointer-events:auto !important; cursor:move; }
+        .fx-edit-root .edit-el.selected {
+            outline:2px solid #ffd27a;
+            outline-offset:2px;
+        }
+        .fx-edit-root #fx-frame { outline-offset:0; }
+        .fx-edit-root #fx-caption-zone img,
+        .fx-edit-root #fx-mask,
+        .fx-edit-root #fx-frame-img {
+            pointer-events:auto; cursor:move;
+        }
+        .fx-edit-root #fx-mask,
+        .fx-edit-root #fx-frame-img {
+            pointer-events:none !important;
+        }
+
+        .video-placeholder {
+            position:absolute; inset:0;
+            background:rgba(16,11,7,0.82);
+            color:rgba(242,234,217,0.42);
+            display:flex; align-items:center; justify-content:center;
+            font-size:1.1rem; letter-spacing:0.3em;
+            pointer-events:none;
+        }
+
+        #handles {
+            position:fixed; inset:0; z-index:150;
+            pointer-events:none;
+        }
+        .h {
+            position:absolute; width:34px; height:34px; margin-left:-17px; margin-top:-17px;
+            border:2px solid #fff; border-radius:7px;
+            display:flex; align-items:center; justify-content:center;
+            font:600 13px/1 ui-monospace, Menlo, Consolas, monospace;
+            color:#fff; cursor:grab; pointer-events:auto; touch-action:none;
+            box-shadow:0 0 0 1px rgba(0,0,0,0.7), 0 3px 8px rgba(0,0,0,0.55);
+        }
+        .h:active { cursor:grabbing; }
+        .h.move { background:#3a86c8; }
+        .h.resize { background:#c98a3a; cursor:nwse-resize; }
+
+        #ctrl {
+            position:fixed; top:10px; right:10px; width:330px; max-height:96vh; overflow:auto;
+            background:rgba(26,22,17,0.96); border:1px solid rgba(201,164,92,0.55);
+            border-radius:7px; padding:12px 14px; font-size:0.78rem; z-index:200;
+            transition:transform 0.18s ease, opacity 0.18s ease;
+        }
+        #ctrl.hidden { transform:translateX(calc(100% + 14px)); opacity:0; pointer-events:none; }
+        #ctrl-top {
+            display:flex; justify-content:space-between; align-items:center;
+            padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid rgba(201,164,92,0.3);
+        }
+        #ctrl h2 { font-size:0.9rem; letter-spacing:0.08em; color:#e6c886; }
+        #hide-panel {
+            background:#2a2218; border:1px solid #4a3d2c; color:#b8a880;
+            padding:4px 10px; border-radius:3px; cursor:pointer; font:inherit; font-size:0.72rem;
+        }
+        #show-panel {
+            position:fixed; top:10px; right:10px; z-index:201; display:none;
+            padding:8px 14px; background:rgba(26,22,17,0.96);
+            border:1px solid #c9a45c; color:#e6c886; border-radius:6px;
+            cursor:pointer; font:inherit; font-size:0.78rem; letter-spacing:0.08em;
+        }
+        #show-panel.show { display:block; }
+
+        .section-label {
+            color:#b8a880; letter-spacing:0.05em; margin:8px 0 4px;
+        }
+        .comp-list { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+        .comp-list button {
+            background:#1a1611; color:#f2ead9; border:1px solid #4a3d2c; border-radius:3px;
+            padding:7px 0; cursor:pointer; font:inherit; font-size:0.78rem;
+        }
+        .comp-list button.active { background:#c9a45c; color:#1a1611; border-color:#c9a45c; }
+
+        .num-grid {
+            display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;
+        }
+        .num-grid label { display:block; color:#7a8a5a; font-size:0.7rem; margin-bottom:2px; }
+        .num-grid input {
+            width:100%; background:#1a1611; color:#f2ead9;
+            border:1px solid #4a3d2c; border-radius:3px; padding:4px 6px;
+            font:inherit; font-size:0.78rem;
+        }
+        .btn-row { display:flex; gap:6px; margin-top:8px; }
+        .btn-row button {
+            flex:1; background:#2a2218; color:#b8a880; border:1px solid #4a3d2c;
+            border-radius:3px; padding:7px 0; cursor:pointer; font:inherit; font-size:0.78rem;
+        }
+        .btn-row button.primary { background:#c9a45c; color:#1a1611; border-color:#c9a45c; }
+
+        .vis-row { display:flex; align-items:center; gap:6px; margin:5px 0; color:#b8a880; }
+        .vis-row input { accent-color:#c9a45c; }
+
+        #out {
+            width:100%; min-height:190px; resize:vertical;
+            background:#0e0c08; color:#b8a880; border:1px solid #4a3d2c; border-radius:3px;
+            padding:8px; font:0.72rem/1.5 ui-monospace, Menlo, Consolas, monospace;
+            white-space:pre; overflow:auto;
+        }
+        .tip { color:#7a8a5a; font-size:0.7rem; margin-top:4px; }
+    </style>
+</head>
+<body>
+
+    <div id="fx-root" class="fx-edit-root">
+        <img id="page-bg" src="/image/视频/书页.webp" alt="">
+        <div id="fx-scene">
+            <div id="fx-frame" class="edit-el" data-key="frame">
+                <div class="video-container">
+                    <div class="video-placeholder">视频区</div>
+                </div>
+                <img id="fx-mask" class="edit-el" src="/image/视频/遮罩.webp" alt="">
+                <img id="fx-boy" class="edit-el" data-key="boy" src="/image/视频/瓷片小男孩.webp" alt="">
+                <img id="fx-vertical-bar" class="edit-el" data-key="verticalBar" src="/image/视频/竖条.webp" alt="">
+                <img id="fx-logo" class="edit-el" data-key="logo" src="/image/视频/logo.webp" alt="">
+                <img id="fx-token" class="edit-el" data-key="token" src="/image/视频/令牌.webp" alt="">
+                <img id="fx-text-1" class="edit-el" data-key="text1" src="/image/视频/文字1.png" alt="">
+                <img id="fx-text-2" class="edit-el" data-key="text2" src="/image/视频/文字2.png" alt="">
+                <img id="fx-text-3" class="edit-el" data-key="text3" src="/image/视频/文字3.png" alt="">
+                <img id="fx-text-4" class="edit-el" data-key="text4" src="/image/视频/文字4.png" alt="">
+                <img id="fx-frame-img" class="edit-el" data-key="frame" src="/image/边框.webp" alt="">
+            </div>
+
+            <div id="fx-caption-zone">
+                <img id="fx-monologue-1" class="edit-el" data-key="mono1" src="/image/视频/独白1.webp" alt="">
+                <img id="fx-monologue-2" class="edit-el" data-key="mono2" src="/image/视频/独白2.webp" alt="">
+                <div id="fx-process" class="edit-el process-bar" data-key="process" aria-hidden="true">
+                    <div id="process-reveal">
+                        <img class="process-layer process-base" src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        <div class="process-glow process-logo" style="clip-path: inset(13.5% 86.67% 18% 4.3%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-logo" style="clip-path: inset(13.5% 69.89% 18% 21.08%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-logo" style="clip-path: inset(13.5% 53.2% 18% 37.77%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-logo" style="clip-path: inset(13.5% 37.05% 18% 53.92%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-logo" style="clip-path: inset(13.5% 18.72% 18% 72.25%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-logo" style="clip-path: inset(13.5% 3.98% 18% 86.99%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-line" style="clip-path: inset(39% 78.9% 51% 13.3%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-line" style="clip-path: inset(39% 62.2% 51% 30.1%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-line" style="clip-path: inset(39% 46.1% 51% 46.8%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-line" style="clip-path: inset(39% 27.75% 51% 62.95%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                        <div class="process-glow process-line" style="clip-path: inset(39% 13% 51% 81.28%)">
+                            <img src="/image/流程条/浅色工艺流程条.webp" alt="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <img id="fx-frame-logo" class="edit-el" data-key="frameLogo" src="/image/logo.webp" alt="">
+        </div>
+    </div>
+
+    <div id="handles"></div>
+
+    <button id="show-panel">显示编辑面板</button>
+    <div id="ctrl">
+        <div id="ctrl-top">
+            <h2>书页视频 · 布局编辑器</h2>
+            <button id="hide-panel">隐藏面板</button>
+        </div>
+
+        <div class="section-label">选择组件（拖动移动，右下角手柄改尺寸）</div>
+        <div class="comp-list" id="comp-list"></div>
+
+        <div class="vis-row">
+            <input id="show-boy" type="checkbox" checked>
+            <label for="show-boy">显示瓷片小男孩（便于单独调整）</label>
+        </div>
+        <div class="vis-row">
+            <input id="show-captions" type="checkbox" checked>
+            <label for="show-captions">显示独白 1 / 2</label>
+        </div>
+        <div class="vis-row">
+            <input id="show-process" type="checkbox" checked>
+            <label for="show-process">显示流程条</label>
+        </div>
+
+        <div class="section-label" id="field-title">位置 / 尺寸</div>
+        <div class="num-grid">
+            <div><label>left %</label><input id="i-left" type="number" step="0.1"></div>
+            <div><label>top %</label><input id="i-top" type="number" step="0.1"></div>
+            <div><label id="i-w-label">width %</label><input id="i-width" type="number" step="0.1"></div>
+            <div><label id="i-h-label">height %</label><input id="i-height" type="number" step="0.1"></div>
+        </div>
+
+        <div class="btn-row">
+            <button id="btn-copy" class="primary">复制 FX_LAYOUT</button>
+            <button id="btn-reset">重置默认</button>
+        </div>
+
+        <div class="section-label">输出：粘贴到 fx-layout.js，替换 window.FX_LAYOUT</div>
+        <textarea id="out" readonly></textarea>
+        <div class="tip">书页按长边铺满、剩余区域 #311909；边框内侧不参与移动。</div>
+    </div>
+
+    <script src="fx-layout.js"></script>
+    <script src="fx-edit.js"></script>
+</body>
+</html>

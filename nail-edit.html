@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="icon" href="data:,">
+    <title>打孔上钉 · 可视化编辑器</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html,body { width:100%; height:100%; overflow:hidden; background:#12100c; color:#f2ead9;
+            font-family:"Noto Serif SC","Songti SC","STSong",serif; touch-action:none; user-select:none; }
+        #stage { position:fixed; inset:0; overflow:hidden; }
+        .fill { width:100%; height:100%; object-fit:cover; display:block; }
+
+        /* 主玩区：与游戏一致，居中显示 16:9 设计稿 */
+        #play-stage { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+            padding: max(1.2%, env(safe-area-inset-top,0)) max(1.2%, env(safe-area-inset-right,0))
+                     max(1.2%, env(safe-area-inset-bottom,0)) max(1.2%, env(safe-area-inset-left,0));
+            z-index:4; }
+        #play { aspect-ratio: 16 / 9; width:100%; max-width:calc(100vh * 16 / 9); height:auto; max-height:100vh;
+            position:relative; display:flex; align-items:center; justify-content:center; padding:2% 2.6%; }
+        #cup-box { position:relative; height:92%; aspect-ratio:5057/3833; touch-action:none; flex:0 0 auto; overflow:visible; }
+        #cup-box .fill,#cup { width:100%; height:100%; object-fit:fill; display:block; }
+
+        #bases { position:absolute; inset:0; pointer-events:none; z-index:2; }
+        .base { position:absolute; pointer-events:none; object-fit:contain; outline:1px dashed rgba(196,63,191,0.5); }
+        #nail-prompts { position:absolute; inset:0; pointer-events:none; z-index:5; }
+        .nail-prompt { position:absolute; pointer-events:none; object-fit:contain;
+            transform:translate(-50%,-50%); outline:1px dashed rgba(230,200,134,0.6); }
+
+        /* 手柄 */
+        #handles { position:absolute; inset:0; z-index:99; overflow:visible; }
+        .h { position:absolute; width:28px; height:28px; margin-left:-14px; margin-top:-14px;
+            border-radius:50%; border:2px solid #fff; cursor:grab; touch-action:none;
+            display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:600;
+            box-shadow:0 0 0 1px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.5); user-select:none; }
+        .h:active { cursor:grabbing; }
+        /* 孔手柄（带数字角标） */
+        .h.hole-m { background:#3fbf6a; border-radius:50%; width:32px; height:32px; margin-left:-16px; margin-top:-16px; font-weight:bold; font-size:14px; }
+        .h.comp { background:#3a86c8; border-radius:6px; width:30px; height:30px; margin-left:-15px; margin-top:-15px; font-size:13px; }       /* 组件移动 */
+        .h.comp-r { background:#c98a3a; border-radius:3px; width:20px; height:20px; margin-left:-10px; margin-top:-10px; cursor:nwse-resize; } /* 组件缩放 */
+        .h.base-m  { background:#c43fbf; border-radius:5px; width:24px; height:24px; margin-left:-12px; margin-top:-12px; font-weight:bold; font-size:13px; }   /* 底图移动 */
+        .h.base-r  { background:#7a3a8a; border-radius:3px; width:20px; height:20px; margin-left:-10px; margin-top:-10px; cursor:nwse-resize; }  /* 底图缩放 */
+        .h.np-m   { background:#c9a45c; border-radius:50%; width:24px; height:24px; margin-left:-12px; margin-top:-12px; font-weight:bold; font-size:13px; }     /* 各钉"上钉"提示移动 */
+        .h.np-r   { background:#8d7530; border-radius:3px; width:20px; height:20px; margin-left:-10px; margin-top:-10px; cursor:nwse-resize; }    /* 各钉"上钉"提示缩放 */
+        .h.cup-m  { background:#5a7fbf; border-radius:5px; width:24px; height:24px; margin-left:-12px; margin-top:-12px; font-weight:bold; font-size:13px; }    /* 瓷杯盒移动 */
+        .h.cup-r  { background:#3a5a8f; border-radius:3px; width:20px; height:20px; margin-left:-10px; margin-top:-10px; cursor:ns-resize; }   /* 瓷杯盒缩放 */
+        .h.ach-m  { background:#c9a45c; border-radius:5px; width:24px; height:24px; margin-left:-12px; margin-top:-12px; font-size:13px; }
+        .h.ach-r  { background:#8d8d8d; border-radius:3px; width:20px; height:20px; margin-left:-10px; margin-top:-10px; cursor:nwse-resize; }
+        .h.text-m { background:#b76ed0; border-radius:50%; width:24px; height:24px; margin-left:-12px; margin-top:-12px; }
+        .h.text-r { background:#7f558c; border-radius:3px; width:20px; height:20px; margin-left:-10px; margin-top:-10px; cursor:ns-resize; }
+        #cup-svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; z-index:3; pointer-events:none; }
+        .connect-line { fill:none; stroke:#fff; stroke-opacity:0.9; stroke-width:0.9; stroke-linecap:round;
+            stroke-linejoin:round; filter: drop-shadow(0 0 1px rgba(255,255,255,0.7)); }
+        .connect-line.dim { stroke:rgba(255,213,107,0.7); stroke-dasharray:1.5 1.5; }
+
+        #holes { position:absolute; inset:0; pointer-events:none; z-index:4; }
+        .hole { position:absolute; transform:translate(-50%,-50%); object-fit:contain; }
+
+        #hole-hint, #edit-ach { position:absolute; inset:0; pointer-events:none; z-index:6; }
+        .hole-target { position:absolute; transform:translate(-50%,-50%); border-radius:50%;
+            border:2px solid #ffd56b; box-shadow:0 0 0 1px rgba(0,0,0,0.6),0 0 12px rgba(255,213,107,0.85); }
+
+        .nail-ach { position:absolute; opacity:0.55; pointer-events:none; }
+        .nail-text { position:absolute; opacity:0.7; pointer-events:none; outline:1px dashed rgba(183,110,208,0.5); }
+        .nail-text img { width:100%; height:100%; object-fit:contain; display:block; }
+
+        /* 浮动提示图（在编辑器里也按游戏中位置展示） */
+        .prompt { position:absolute; object-fit:contain; pointer-events:none; }
+        #prompt-nail { outline:1px dashed rgba(230,200,134,0.5); }
+        #prompt-connect { outline:1px dashed rgba(230,200,134,0.5); }
+        #prompt-move { outline:1px dashed rgba(180,220,240,0.5); }
+        /* 开始体验 / 连孔上钉(前/后) — 用不同颜色虚线框区分 */
+        #prompt-start { outline:1px dashed rgba(120,220,180,0.65); }
+        #prompt-connect-before { outline:1px dashed rgba(255,180,120,0.7); }
+        #prompt-connect-after  { outline:1px dashed rgba(255,120,150,0.75); }
+        /* 给连孔上钉前/后叠加角标 */
+        #prompt-connect-before::after, #prompt-connect-after::after {
+            content: attr(data-label); position:absolute; left:-2px; top:-12px;
+            font-size:11px; padding:1px 4px; border-radius:2px; color:#1a1611; font-weight:700;
+            background:#ffd56b; letter-spacing:0.05em;
+        }
+        #prompt-connect-after::after { background:#ff9bb0; }
+
+        /* 控制面板 */
+        #ctrl { position:absolute; top:10px; right:10px; width:320px; max-height:96vh; overflow:auto;
+            background:rgba(26,22,17,0.94); border:1px solid rgba(201,164,92,0.5); border-radius:6px;
+            padding:12px 14px; font-size:0.78rem; z-index:30;
+            transition: transform 0.18s ease, opacity 0.18s ease; }
+        /* 隐藏面板时折叠到右上角，腾出空间给手柄拖动 */
+        #ctrl.hidden { transform: translateX(calc(100% + 14px)); opacity:0; pointer-events:none; }
+        /* 显示面板的悬浮按钮 */
+        #show-panel { position:absolute; top:10px; right:10px; z-index:31;
+            padding:8px 14px; background:rgba(26,22,17,0.94); border:1px solid #c9a45c; color:#e6c886;
+            border-radius:6px; cursor:pointer; font-family:inherit; font-size:0.78rem; letter-spacing:0.1em;
+            display:none; }
+        #show-panel.show { display:block; }
+        #ctrl-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+        #hide-panel { padding:4px 10px; border:1px solid #c9a45c; background:transparent; color:#e6c886;
+            cursor:pointer; font-family:inherit; font-size:0.72rem; letter-spacing:0.1em; border-radius:2px; }
+        #ctrl h2 { font-size:0.86rem; letter-spacing:0.14em; margin:0; color:#e6c886; }
+        #ctrl .row { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
+        #ctrl label { color:rgba(242,234,217,0.75); min-width:64px; }
+        #ctrl input[type=range] { flex:1; min-width:90px; }
+        #ctrl select, #ctrl input[type=number] { background:#13110d; border:1px solid rgba(201,164,92,0.5);
+            color:#f2ead9; padding:3px 6px; font-family:inherit; font-size:0.78rem; border-radius:2px; }
+        #ctrl button { padding:6px 12px; border:1px solid #c9a45c; background:transparent; color:#e6c886;
+            cursor:pointer; font-family:inherit; font-size:0.74rem; letter-spacing:0.1em; border-radius:2px; }
+        #ctrl button.active { background:rgba(201,164,92,0.2); color:#fff; }
+        #ctrl textarea { width:100%; height:260px; margin-top:6px; background:#0f0d0a; color:#d8e6c8;
+            border:1px solid rgba(201,164,92,0.3); border-radius:2px; font-family:Consolas,Menlo,monospace;
+            font-size:0.7rem; padding:6px; resize:vertical; }
+        .seg { display:inline-flex; border:1px solid rgba(201,164,92,0.5); border-radius:2px; overflow:hidden; }
+        .seg button { border:none; border-radius:0; padding:5px 10px; }
+        .note { color:rgba(242,234,217,0.6); font-size:0.72rem; line-height:1.6; margin-top:8px; }
+        .b1{color:#3fbf6a} .b2{color:#c43fbf} .b3{color:#c9a45c} .b4{color:#b76ed0}
+        code { background:rgba(201,164,92,0.12); padding:1px 4px; border-radius:2px; color:#e6c886; }
+        .order-row { display:flex; align-items:center; gap:6px; margin:4px 0; font-size:0.74rem; }
+        .order-row input { width:38px; padding:2px 4px; text-align:center; }
+    </style>
+</head>
+<body>
+    <div id="stage">
+        <img class="fill" src="/上钉/image/工作台背景.webp" alt="">
+        <div id="play-stage">
+            <div id="play">
+                <div id="cup-box">
+                    <img id="cup" class="fill" src="/上钉/image/瓷杯底图.webp" alt="">
+                    <div id="bases"></div>
+                    <div id="nail-prompts"></div>
+                    <svg id="cup-svg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+                    <div id="holes"></div>
+                    <div id="hole-hint"></div>
+                    <div id="edit-ach"></div>
+                    <div id="handles"></div>
+                </div>
+                <img id="prompt-connect" class="prompt" src="/上钉/image/提示——连线.webp" alt="">
+        </div>
+            <img id="prompt-nail" class="prompt" src="/上钉/image/提示——上钉.png" alt="">
+            <img id="prompt-move" class="prompt" src="/上钉/image/提示——移至操作台 .png" alt="">
+            <!-- 新流程提示：开始体验、连孔上钉(移动前/后) -->
+            <img id="prompt-start" class="prompt" src="/上钉/image/提示——开始体验.webp" alt="">
+            <img id="prompt-connect-before" class="prompt" src="/上钉/image/提示——连孔上钉.webp" alt="" data-label="移动前">
+            <img id="prompt-connect-after"  class="prompt" src="/上钉/image/提示——连孔上钉.webp" alt="" data-label="移动后">
+        </div>
+    </div>
+
+    <button id="show-panel">显示面板</button>
+    <div id="ctrl">
+        <div id="ctrl-top">
+            <h2>打孔上钉 · 编辑器</h2>
+            <button id="hide-panel">隐藏面板</button>
+        </div>
+        <div class="row"><label>编辑模式</label>
+            <div class="seg" id="seg-mode">
+                <button data-mode="components" class="active">组件位置</button>
+                <button data-mode="holes">孔位/连线</button>
+                <button data-mode="achievements">成就位置</button>
+            </div>
+        </div>
+        <div class="row" id="cup-row"><label>瓷杯位置</label>
+            <div class="seg" id="seg-cup">
+                <button data-cup="before" class="active">移动前</button>
+                <button data-cup="after">移动后</button>
+            </div>
+        </div>
+        <div class="row" id="nail-row" style="display:none"><label>当前钉</label>
+            <div class="seg" id="seg-nail">
+                <button data-nail="0" class="active">① 梅花钉 (6 孔)</button>
+                <button data-nail="1">② 柳叶钉 (4 孔)</button>
+            </div>
+        </div>
+        <div class="row">
+            <button id="t-trajectory">隐藏连线轨迹</button>
+            <button id="t-holes">隐藏孔位</button>
+            <button id="t-ach">隐藏成就预览</button>
+        </div>
+        <div class="row"><button id="copy">复制 CONFIG 片段</button></div>
+        <textarea id="out" readonly></textarea>
+
+        <div id="order-panel" style="display:none">
+            <div class="note" style="margin-top:10px"><b>分段连线</b>（每段内顺序相连；段间不连线）。<br>
+                <span style="color:rgba(242,234,217,0.7)">角标格式 段号.位次，如 1.1 = 第 1 段第 1 个孔。</span><br>
+                <b>此后开新段</b> = 把该孔之后的同段部分拆为新段（如柳叶钉 [[0,1,2,3]] → 孔2 拆段 → [[0,1],[2,3]]）；<br>
+                <b>并入上段</b> = 把该孔并入上一段末尾（如 [[0],[1,2,3]] → 孔2 并入上段 → [[0,1],[2,3]]）。</div>
+            <div id="order-list"></div>
+            <div class="row" style="margin-top:6px">
+                <button id="order-reset">重置为单段</button>
+                <button id="order-reverse">反转每段顺序</button>
+            </div>
+        </div>
+
+        <div class="note">
+            拖动彩色圆点/方块调整：<br>
+            <span class="b1">●</span> 孔位（绿，角标=段号.位次）
+            <span class="b2">■</span> 各钉底图（紫，B/R = 中心移动 / 右沿缩放宽度）
+            <span class="b3">●</span> 全局"上钉"提示、"连线"提示、钉图（金，N/R = 中心移动 / 右沿缩放宽度）<br>
+            <span style="color:#7adcb4">●</span> 开始体验（绿，体/R=移动/右沿缩放）
+            <span style="color:#ffb478">●</span> 连孔上钉·移动前（橙，连前/R=移动/右沿缩放）
+            <span style="color:#ff7996">●</span> 连孔上钉·移动后（粉，连后/R=移动/右沿缩放）<br>
+            <span style="color:#5a7fbf">■</span> 瓷杯·移动前（蓝，<b>"杯前"</b>=中心移动，"R"=底边缩放高度）<br>
+            <span style="color:#3fbfc8">■</span> 瓷杯·移动后（青，<b>"杯后"</b>=中心移动，"R"=底边缩放高度）—— 切换"瓷杯位置"查看<br>
+            <span class="b4">●</span> 文字横幅（紫圆，T = 中心移动 / H = 下沿改高度；<b>右移可越出 cup-box</b>）<br>
+            <b>移动前/后参数不要混</b>：瓷杯在 before 位置上滑入，移至 after 位置后才开始打孔。<br>
+            改完点 <b>复制</b>，把内容贴回 <code>nail.js</code> 顶部 CONFIG 的对应字段。
+        </div>
+    </div>
+
+    <script src="nail-edit.js"></script>
+</body>
+</html>

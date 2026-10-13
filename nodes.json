@@ -1,0 +1,38 @@
+{
+  "title": "焗瓷记 · 滚表驱动叙事节点配置",
+  "arPath": "/ar.html?node=",
+  "nodes": [
+    {
+      "id": "n01_identify",
+      "time": 8,
+      "step": "第一环节",
+      "title": "名瓷鉴定",
+      "desc": "博古架场景定格，识别眼前瓷器的年代与窑口。",
+      "page": "/check.html"
+    },
+    {
+      "id": "n02_align",
+      "time": 67,
+      "step": "第二环节",
+      "title": "找碴对缝",
+      "desc": "案头碎瓷定格，将散落的碎片对齐拼回碗身。",
+      "page": "/align.html"
+    },
+    {
+      "id": "n03_bind",
+      "time": 80,
+      "step": "第三环节",
+      "title": "绑扎定型",
+      "desc": "拼合后的碗定格，绕线绑扎，让碎片就此定型。",
+      "page": "/bind.html"
+    },
+    {
+      "id": "n04_nail",
+      "time": 91,
+      "step": "第四环节",
+      "title": "打孔上钉",
+      "desc": "聚光特写定格，进入打孔与锔钉的最后一步。",
+      "page": "/nail.html"
+    }
+  ]
+}

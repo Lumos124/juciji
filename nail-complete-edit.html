@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="icon" href="data:,">
+    <title>打孔上钉 · 结算界面编辑器</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html,body { width:100%; height:100%; overflow:hidden; background:#12100c; color:#f2ead9;
+            font-family:"Noto Serif SC","Songti SC","STSong",serif; touch-action:none; user-select:none; }
+        #stage { position:fixed; inset:0; overflow:hidden; }
+        #frame { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; pointer-events:none; z-index:5; }
+        #play { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(0.8); aspect-ratio:16/9; width:100%;
+            max-width:calc(100vh * 16 / 9); height:auto; max-height:100vh; z-index:2; }
+        #comps { position:absolute; inset:0; z-index:1; }
+        .comp { position:absolute; pointer-events:none; outline:1px dashed rgba(230,200,134,0.55); }
+        .comp img { width:100%; height:100%; object-fit:contain; display:block; }
+        .comp.bg { left:0; top:0; width:100%; height:100%; outline:none; }
+        .comp.bg img { object-fit:contain; }
+
+        #handles { position:absolute; inset:0; z-index:99; pointer-events:none; }
+        .h { position:absolute; width:20px; height:20px; margin-left:-10px; margin-top:-10px; border-radius:50%;
+            border:2px solid #fff; cursor:grab; pointer-events:auto; display:flex; align-items:center; justify-content:center;
+            font-size:11px; color:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.5); }
+        .h.comp-m { background:#3a86c8; border-radius:5px; }
+        .h.comp-r { background:#c98a3a; border-radius:3px; width:16px; height:16px; margin-left:-8px; margin-top:-8px; cursor:nwse-resize; }
+
+        #ctrl { position:absolute; top:10px; right:10px; width:340px; max-height:96vh; overflow:auto;
+            background:rgba(26,22,17,.96); border:1px solid rgba(201,164,92,.5); border-radius:6px;
+            padding:12px 14px; font-size:.78rem; z-index:30; transition:transform .18s ease, opacity .18s ease; }
+        #ctrl.hidden { transform:translateX(calc(100% + 24px)); opacity:0; pointer-events:none; }
+        #show-panel { position:absolute; top:10px; right:10px; z-index:31; display:none; padding:8px 14px;
+            background:rgba(26,22,17,.96); border:1px solid #c9a45c; color:#e6c886; border-radius:6px; cursor:pointer;
+            font-family:inherit; font-size:.78rem; }
+        #show-panel.show { display:block; }
+        #ctrl-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+        #drag-handle { flex:1; cursor:move; padding:2px 4px; color:rgba(242,234,217,.55); font-size:.7rem;
+            letter-spacing:.08em; border:1px dashed rgba(201,164,92,.35); border-radius:2px; }
+        #hide-panel { padding:4px 10px; border:1px solid #c9a45c; background:transparent; color:#e6c886;
+            cursor:pointer; font-family:inherit; font-size:.72rem; border-radius:2px; }
+        #ctrl h2 { font-size:.86rem; letter-spacing:.14em; margin:0; color:#e6c886; }
+        #ctrl .row { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
+        #ctrl button { padding:5px 10px; border:1px solid #c9a45c; background:transparent; color:#e6c886;
+            cursor:pointer; font-family:inherit; font-size:.74rem; letter-spacing:.1em; border-radius:2px; }
+        #ctrl textarea { width:100%; height:300px; margin-top:6px; background:#0f0d0a; color:#d8e6c8;
+            border:1px solid rgba(201,164,92,.3); border-radius:2px; font-family:Consolas,Menlo,monospace;
+            font-size:.7rem; padding:6px; resize:vertical; }
+        .note { color:rgba(242,234,217,.6); font-size:.72rem; line-height:1.6; margin-top:8px; }
+    </style>
+</head>
+<body>
+    <div id="stage">
+        <img id="frame" src="/image/边框.webp" alt="">
+        <div id="play">
+            <div id="comps"></div>
+            <div id="handles"></div>
+        </div>
+    </div>
+    <div id="ctrl">
+        <div id="ctrl-top"><div id="drag-handle">≡ 拖动面板</div><button id="hide-panel">隐藏</button></div>
+        <h2>上钉结算界面</h2>
+        <div class="row"><button id="copy">复制 complete 片段</button></div>
+        <textarea id="out" readonly></textarea>
+        <div class="note">蓝色 M = 移动，橙色 R = 缩放；背景固定铺满。改完点复制，把片段贴回 nail.js 的 CONFIG.complete。</div>
+    </div>
+    <button id="show-panel" class="show">显示面板</button>
+    <script src="nail-complete-edit.js"></script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <link rel="icon" href="data:,">
+    <title>焗瓷记 · 起始选段动画编辑器</title>
+    <link rel="stylesheet" href="intro.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html,body { width:100%; height:100%; overflow:hidden; background:#12100c; color:#f2ead9;
+            font-family:"Noto Serif SC","Songti SC","STSong",serif; touch-action:none; user-select:none; }
+
+        /* 舞台模拟：与游戏 viewport 同步 */
+        #stage { position:fixed; inset:0; overflow:hidden; }
+
+        /* 编辑器内的段位字容器：z-index 高于边框(50) 让字可见，但子元素 pointer-events:none 让手柄可点 */
+        #intro-chars { position:absolute; inset:0; z-index:60; pointer-events:none; }
+        #intro-chars .intro-char { z-index:auto; pointer-events:none; }
+
+        /* 模式切换 + 控制 */
+        #ctrl {
+            position:absolute; top:10px; right:10px; width:340px; max-height:96vh; overflow:auto;
+            background:rgba(26,22,17,0.94); border:1px solid rgba(201,164,92,0.5); border-radius:6px;
+            padding:12px 14px; font-size:0.78rem; z-index:200;
+            transition: transform 0.18s ease, opacity 0.18s ease;
+        }
+        #ctrl.hidden { transform: translateX(calc(100% + 14px)); opacity:0; pointer-events:none; }
+        #ctrl-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;
+            padding-bottom:8px; border-bottom:1px solid rgba(201,164,92,0.3); }
+        #ctrl h2 { font-size:0.9rem; letter-spacing:0.1em; color:#e6c886; }
+        .ctrl-row { margin-bottom:10px; }
+        .ctrl-row > label { display:block; margin-bottom:4px; color:#b8a880; letter-spacing:0.06em; }
+        .ctrl-row input[type="range"],
+        .ctrl-row input[type="number"] {
+            width:80px; background:#1a1611; color:#f2ead9; border:1px solid #4a3d2c; border-radius:3px;
+            padding:3px 6px; font-size:0.78rem; font-family:inherit;
+        }
+        .ctrl-row select {
+            background:#1a1611; color:#f2ead9; border:1px solid #4a3d2c; border-radius:3px;
+            padding:3px 6px; font-size:0.78rem; font-family:inherit;
+        }
+        #show-panel { position:absolute; top:10px; right:10px; z-index:201;
+            padding:8px 14px; background:rgba(26,22,17,0.94); border:1px solid #c9a45c; color:#e6c886;
+            border-radius:6px; cursor:pointer; font-family:inherit; font-size:0.78rem; letter-spacing:0.1em;
+            display:none; }
+        #show-panel.show { display:block; }
+        #hide-panel { background:#2a2218; border:1px solid #4a3d2c; color:#b8a880;
+            padding:4px 10px; border-radius:3px; cursor:pointer; font-family:inherit; font-size:0.72rem; }
+
+        .char-grid { display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px; }
+        .char-grid button {
+            background:#1a1611; color:#f2ead9; border:1px solid #4a3d2c; border-radius:3px;
+            padding:6px 0; cursor:pointer; font-family:inherit; font-size:0.78rem; letter-spacing:0.06em;
+        }
+        .char-grid button.active { background:#c9a45c; color:#1a1611; border-color:#c9a45c; }
+
+        .btn-row { display:flex; gap:6px; margin-top:6px; }
+        .btn-row button {
+            flex:1; background:#2a2218; color:#b8a880; border:1px solid #4a3d2c; border-radius:3px;
+            padding:6px 0; cursor:pointer; font-family:inherit; font-size:0.78rem; letter-spacing:0.06em;
+        }
+        .btn-row button.primary { background:#c9a45c; color:#1a1611; border-color:#c9a45c; }
+
+        #out {
+            width:100%; min-height:260px; background:#0e0c08; color:#b8a880;
+            border:1px solid #4a3d2c; border-radius:3px; padding:8px; font-size:0.72rem;
+            font-family: ui-monospace, Menlo, Consolas, monospace; line-height:1.5;
+            white-space:pre; overflow:auto; resize:vertical;
+        }
+        .copy-tip { color:#7a8a5a; font-size:0.7rem; margin-top:4px; }
+
+        /* 边框：编辑器里设低 z-index，避免盖住手柄(150)和面板(200) */
+        #frame-img { z-index: 40 !important; }
+        /* logo：高于边框，低于手柄 */
+        #intro-logo { position: fixed; z-index: 45; pointer-events: none; object-fit: contain; }
+        /* 手柄层：z-index 高于 .intro-char，避免被字图遮住导致点击不到 */
+        #handles { position:absolute; inset:0; z-index:150; overflow:visible; pointer-events:none; }
+        .h { position:absolute; width:30px; height:30px; margin-left:-15px; margin-top:-15px;
+            border-radius:6px; border:2px solid #fff; cursor:grab; touch-action:none;
+            display:flex; align-items:center; justify-content:center; font-size:13px; color:#fff; font-weight:600;
+            box-shadow:0 0 0 1px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.5); user-select:none;
+            pointer-events:auto; }
+        .h:active { cursor:grabbing; }
+        .h.move { background:#3a86c8; }                   /* 字移动 */
+        .h.resize { background:#c98a3a; border-radius:3px; width:20px; height:20px;
+            margin-left:-10px; margin-top:-10px; cursor:nwse-resize; }  /* 字缩放 */
+        .h.scale { background:#b76ed0; border-radius:50%; width:26px; height:26px;
+            margin-left:-13px; margin-top:-13px; cursor:ns-resize; }  /* 字 scale 调整 */
+    </style>
+</head>
+<body>
+
+    <div id="stage">
+        <!-- 模拟游戏舞台：背景 + 边框 + 4 个段位字 -->
+        <video id="intro-bg" muted autoplay playsinline loop></video>
+        <!-- 4 个段位字由 JS 动态创建到 #intro-chars -->
+        <div id="intro-chars"></div>
+        <!-- 边框（与游戏中一致，全屏 fixed，z-index 50） -->
+        <img id="frame-img" alt="">
+        <!-- logo（左下角，z-index 201，高于边框） -->
+        <img id="intro-logo" alt="">
+        <!-- 手柄层 -->
+        <div id="handles"></div>
+    </div>
+
+    <button id="show-panel">显示面板</button>
+
+    <div id="ctrl">
+        <div id="ctrl-top">
+            <h2>起始选段 · 编辑器</h2>
+            <button id="hide-panel">隐藏面板</button>
+        </div>
+
+        <div class="ctrl-row">
+            <label>预览游戏类型</label>
+            <select id="game-type">
+                <option value="bind">绑扎定型（高亮「绑」）</option>
+                <option value="nail">打孔上钉（高亮「钉」）</option>
+            </select>
+        </div>
+
+        <div class="ctrl-row">
+            <label>编辑阶段</label>
+            <select id="stage-pick">
+                <option value="1">阶段1：4 字全亮（初始停留态）</option>
+                <option value="2">阶段2：高亮+其余暗（点击进入态）</option>
+            </select>
+        </div>
+
+        <div class="ctrl-row">
+            <label>当前编辑的字</label>
+            <div class="char-grid" id="char-pick">
+                <button data-key="jian">鉴</button>
+                <button data-key="dui">对</button>
+                <button data-key="bang">绑</button>
+                <button data-key="ding">钉</button>
+            </div>
+        </div>
+
+        <div class="ctrl-row">
+            <label>位置/大小（视口 %）</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px;">
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">top</label><input id="i-top" type="number" step="0.1" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">left</label><input id="i-left" type="number" step="0.1" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">width</label><input id="i-width" type="number" step="0.1" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">height</label><input id="i-height" type="number" step="0.1" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">scale (放大)</label><input id="i-scale" type="number" step="0.01" /></div>
+            </div>
+        </div>
+
+        <div class="ctrl-row">
+            <label>整层动画时长（毫秒）</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; margin-top:6px;">
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">淡入</label><input id="i-fadeIn" type="number" step="10" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">4字全亮停</label><input id="i-allBright" type="number" step="10" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">可点延</label><input id="i-ready" type="number" step="10" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">闪黑</label><input id="i-blackout" type="number" step="10" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">淡出</label><input id="i-fadeOut" type="number" step="10" /></div>
+            </div>
+        </div>
+
+        <div class="ctrl-row">
+            <label>logo 位置/大小（视口 %，左下角）</label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px;">
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">top</label><input id="i-logo-top" type="number" step="0.1" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">left</label><input id="i-logo-left" type="number" step="0.1" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">width</label><input id="i-logo-width" type="number" step="0.1" /></div>
+                <div><label style="font-size:0.7rem;color:#7a8a5a;">height</label><input id="i-logo-height" type="number" step="0.1" /></div>
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button id="btn-preview" class="primary">▶ 预览动画</button>
+            <button id="btn-reset">重置当前字</button>
+        </div>
+        <div class="btn-row">
+            <button id="btn-copy">复制 CONFIG 片段</button>
+        </div>
+
+        <div class="ctrl-row" style="margin-top:10px;">
+            <label>输出（贴回 intro-common.js 的 PRE_INTRO_CONFIG）</label>
+            <textarea id="out" readonly></textarea>
+            <div class="copy-tip">Ctrl/Cmd+A 全选 → Ctrl/Cmd+C 复制</div>
+        </div>
+    </div>
+
+    <script src="intro-common.js"></script>
+    <script src="intro-edit.js"></script>
+</body>
+</html>

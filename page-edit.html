@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#12100c">
+    <link rel="icon" href="data:,">
+    <title>锔瓷记 · 左右页布局编辑器</title>
+    <link rel="stylesheet" href="fx.css">
+    <link rel="stylesheet" href="page-edit.css">
+</head>
+<body>
+    <div class="fx-root page-edit-root">
+        <img id="page-bg" src="/image/视频/书页.webp" alt="">
+        <div id="page-stage" class="page-stage active">
+            <video id="page-left" muted playsinline preload="auto" src="/image/两页/左边.mp4"></video>
+            <video id="page-right" muted playsinline preload="auto" src="/image/两页/右边.mp4"></video>
+            <video id="page-bar-left" muted playsinline preload="auto" src="/image/两页/竖条动画-左.webm?v=3"></video>
+            <video id="page-bar-right" muted playsinline preload="auto" src="/image/两页/竖条动画-右.webm?v=3"></video>
+            <img id="page-border-left" class="page-border" src="/image/两页/border-left-active.webp" alt="">
+            <img id="page-border-right" class="page-border" src="/image/两页/border-right-active.webp" alt="">
+        </div>
+    </div>
+
+    <div id="handles"></div>
+
+    <button id="show-panel" type="button">显示编辑面板</button>
+    <aside id="panel">
+        <header>
+            <div>
+                <p class="eyebrow">锔瓷记 · 21-41s</p>
+                <h1>左右页布局</h1>
+            </div>
+            <button id="hide-panel" type="button">收起</button>
+        </header>
+
+        <section>
+            <p class="label">组件</p>
+            <div class="seg" id="component-list">
+                <button type="button" data-key="left" class="active">左页视频</button>
+                <button type="button" data-key="right">右页视频</button>
+                <button type="button" data-key="bar">竖条动画</button>
+            </div>
+        </section>
+
+        <section id="bar-side-row">
+            <p class="label">竖条位置</p>
+            <div class="seg" id="bar-side">
+                <button type="button" data-side="left" class="active">左页竖条</button>
+                <button type="button" data-side="right">右页竖条</button>
+            </div>
+        </section>
+
+        <section>
+            <p class="label" id="fields-title">位置与尺寸</p>
+            <div class="field-grid">
+                <label>左 %<input id="v-left" type="number" step="0.1"></label>
+                <label>上 %<input id="v-top" type="number" step="0.1"></label>
+                <label>宽 %<input id="v-width" type="number" step="0.1"></label>
+                <label>高 %<input id="v-height" type="number" step="0.1"></label>
+            </div>
+        </section>
+
+        <section>
+            <p class="label">显示</p>
+            <div class="toggle-grid">
+                <label><input id="show-left" type="checkbox" checked> 左页视频</label>
+                <label><input id="show-right" type="checkbox" checked> 右页视频</label>
+                <label><input id="show-bar" type="checkbox" checked> 竖条动画</label>
+            </div>
+        </section>
+
+        <section>
+            <p class="label">视频预览</p>
+            <div class="preview-row">
+                <span>左页</span>
+                <input id="time-left" type="range" min="0" max="10.52" step="0.01" value="3">
+                <output id="time-left-value">3.00s</output>
+            </div>
+            <div class="preview-row">
+                <span>右页</span>
+                <input id="time-right" type="range" min="0" max="9.54" step="0.01" value="3">
+                <output id="time-right-value">3.00s</output>
+            </div>
+            <div class="preview-row">
+                <span>竖条</span>
+                <input id="time-bar" type="range" min="0" max="5.00" step="0.01" value="1">
+                <output id="time-bar-value">1.00s</output>
+            </div>
+        </section>
+
+        <section>
+            <p class="label">配置</p>
+            <textarea id="output" spellcheck="false"></textarea>
+            <div class="actions">
+                <button id="save-preview" type="button" class="primary">保存并预览</button>
+                <button id="copy-config" type="button">复制配置</button>
+                <button id="reset-config" type="button">恢复默认</button>
+                <a href="/index.html" target="_blank" rel="noopener">打开主页面</a>
+            </div>
+            <p class="status" id="status"></p>
+        </section>
+    </aside>
+
+    <script src="page-layout.js"></script>
+    <script src="page-edit.js"></script>
+</body>
+</html>
